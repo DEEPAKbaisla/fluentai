@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  plan          String    @default("free")
+  streak        Int       @default(0)
+  joinedAt      DateTime  @default(now())
+  accounts      Account[]
+  sessions      Session[]
+  conversations     Conversation[]
+  userAchievements  UserAchievement[]
+  weakestWords      WeakestWord[]
+  repeatedMistakes  RepeatedMistake[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Conversation {
+  id                 String      @id @default(cuid())
+  userId             String
+  topic              String
+  date               DateTime    @default(now())
+  duration           Int         @default(0)
+  overallScore       Float       @default(0)
+  grammarScore       Float       @default(0)
+  pronunciationScore Float       @default(0)
+  vocabularyScore    Float       @default(0)
+  fluencyScore       Float       @default(0)
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages           Message[]
+
+  @@index([userId, date])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  timestamp      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  corrections    Correction[]
+
+  @@index([conversationId])
+}
+
+model Correction {
+  id        String  @id @default(cuid())
+  messageId String
+  type      String
+  original  String
+  corrected String
+  explanation String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+}
+
+model Achievement {
+  id          String          @id @default(cuid())
+  title       String
+  description String
+  icon        String
+  target      Int
+  userAchievements UserAchievement[]
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  achievementId String
+  progress      Int         @default(0)
+  unlockedAt    DateTime?
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+}
+
+model PracticeTopic {
+  id    String @id @default(cuid())
+  title String
+  icon  String
+  level String
+}
+
+model PricingPlan {
+  id          String   @id @default(cuid())
+  name        String
+  price       Int
+  period      String   @default("month")
+  description String
+  features    String[]
+  cta         String
+  highlighted Boolean  @default(false)
+}
+
+model WeakestWord {
+  id       String @id @default(cuid())
+  userId   String
+  word     String
+  attempts Int    @default(0)
+  accuracy Float  @default(0)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RepeatedMistake {
+  id       String @id @default(cuid())
+  userId   String
+  mistake  String
+  count    Int    @default(0)
+  type     String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailOtp {
+  id           String   @id @default(cuid())
+  email        String
+  name         String
+  passwordHash String
+  otp          String
+  expiresAt    DateTime
+  attempts     Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@unique([email])
+  @@index([email])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String
+  otp       String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@unique([email])
+  @@index([email])
+}
