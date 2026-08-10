@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDuration, formatDate } from "@/lib/utils";
 import {
   Dialog,
@@ -87,8 +88,23 @@ export default function HistoryPage() {
       {/* Conversations List */}
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-2xl bg-muted/50" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex items-center justify-between rounded-2xl border border-border/50 bg-card p-4">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="space-y-1 text-right">
+                  <Skeleton className="ml-auto h-3 w-10" />
+                  <Skeleton className="ml-auto h-6 w-8" />
+                </div>
+                <Skeleton className="h-8 w-8 rounded-lg" />
+              </div>
+            </div>
           ))}
         </div>
       ) : filtered.length > 0 ? (

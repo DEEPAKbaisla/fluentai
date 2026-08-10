@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ScoreCard } from "@/components/score-card";
 import { Button } from "@/components/ui/button";
+import { DashboardSkeleton } from "@/components/dashboard-skeletons";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { formatDuration, formatRelativeTime } from "@/lib/utils";
@@ -57,17 +58,24 @@ export default function DashboardPage() {
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [topics, setTopics] = useState<TopicItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user/profile").then((r) => r.json()).then(setProfile);
-    fetch("/api/scores/latest").then((r) => r.json()).then(setScores);
-    fetch("/api/weekly-progress").then((r) => r.json()).then(setWeeklyData);
-    fetch("/api/conversations?limit=3").then((r) => r.json()).then((d) => setConversations(d.conversations || []));
-    fetch("/api/practice-topics?limit=5").then((r) => r.json()).then(setTopics);
+    Promise.all([
+      fetch("/api/user/profile").then((r) => r.json()).then(setProfile),
+      fetch("/api/scores/latest").then((r) => r.json()).then(setScores),
+      fetch("/api/weekly-progress").then((r) => r.json()).then(setWeeklyData),
+      fetch("/api/conversations?limit=3").then((r) => r.json()).then((d) => setConversations(d.conversations || [])),
+      fetch("/api/practice-topics?limit=5").then((r) => r.json()).then(setTopics),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const firstName = profile?.name?.split(" ")[0] || session?.user?.name?.split(" ")[0] || "there";
   const streak = profile?.streak ?? 0;
+
+  if (loading) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-8">

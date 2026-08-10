@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DotMap } from "./dot-map";
-import { loginWithCredentials, loginWithGoogle } from "@/lib/actions/auth";
+import { loginWithCredentials } from "@/lib/actions/auth";
+import { signIn } from "next-auth/react";
 
 export function SignInCard() {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -124,7 +125,7 @@ export function SignInCard() {
               <Button
                 variant="outline"
                 className="w-full rounded-full h-11 font-medium"
-                onClick={() => loginWithGoogle()}
+                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                 type="button"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">

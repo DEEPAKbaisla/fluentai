@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { UsageMeter } from "@/components/usage-meter";
+import { SubscriptionSkeleton } from "@/components/dashboard-skeletons";
 import { cn } from "@/lib/utils";
 
 interface Plan {
@@ -13,6 +15,7 @@ interface Plan {
   description: string;
   features: string[];
   cta: string;
+  highlighted?: boolean;
 }
 
 interface SubscriptionData {
@@ -20,24 +23,39 @@ interface SubscriptionData {
   status: string;
 }
 
-interface StatsData {
-  sessions: number;
-  practiceTime: string;
-  avgScore: number;
+interface UsageData {
+  daily: { used: number; limit: number; remaining: number; percentage: number };
+  monthly: { used: number; limit: number; remaining: number; percentage: number };
+  sessionsToday: number;
+  maxSessionMinutes: number;
+  canStartSession: boolean;
+  plan: string;
+  limits: {
+    dailyMinutes: number;
+    monthlyMinutes: number;
+    maxSessionMinutes: number;
+  };
 }
 
 export default function SubscriptionPage() {
   const [currentPlan, setCurrentPlan] = useState<SubscriptionData | null>(null);
-  const [stats, setStats] = useState<StatsData | null>(null);
+  const [usage, setUsage] = useState<UsageData | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/subscription/current").then((r) => r.json()).then(setCurrentPlan);
-    fetch("/api/subscription/stats").then((r) => r.json()).then(setStats);
-    fetch("/api/pricing-plans").then((r) => r.json()).then(setPlans);
+    Promise.all([
+      fetch("/api/subscription/current").then((r) => r.json()).then(setCurrentPlan),
+      fetch("/api/usage").then((r) => r.json()).then(setUsage),
+      fetch("/api/pricing-plans").then((r) => r.json()).then(setPlans),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const userPlan = currentPlan?.plan || "free";
+
+  if (loading) {
+    return <SubscriptionSkeleton />;
+  }
 
   return (
     <div className="space-y-8">
@@ -47,10 +65,10 @@ export default function SubscriptionPage() {
         transition={{ duration: 0.4 }}
       >
         <h1 className="text-2xl font-bold tracking-tight">Subscription</h1>
-        <p className="mt-1 text-muted-foreground">Manage your plan and billing</p>
+        <p className="mt-1 text-muted-foreground">Manage your plan and usage</p>
       </motion.div>
 
-      {/* Current Plan */}
+      {/* Current Plan & Usage */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -68,20 +86,33 @@ export default function SubscriptionPage() {
             </p>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold">{stats?.sessions ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Sessions</p>
+
+        {usage && (
+          <div className="mt-6 space-y-4">
+            <UsageMeter
+              used={usage.daily.used}
+              limit={usage.daily.limit}
+              label="Daily Practice"
+              size="md"
+            />
+            <UsageMeter
+              used={usage.monthly.used}
+              limit={usage.monthly.limit}
+              label="Monthly Practice"
+              size="sm"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-xl bg-muted/30 p-4 text-center">
+                <p className="text-2xl font-bold">{usage.sessionsToday}</p>
+                <p className="text-xs text-muted-foreground">Sessions Today</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-4 text-center">
+                <p className="text-2xl font-bold">{usage.maxSessionMinutes}m</p>
+                <p className="text-xs text-muted-foreground">Max Session</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold">{stats?.practiceTime ?? "0h"}</p>
-            <p className="text-xs text-muted-foreground">Practice Time</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold">{stats?.avgScore ?? 0}</p>
-            <p className="text-xs text-muted-foreground">Avg Score</p>
-          </div>
-        </div>
+        )}
       </motion.div>
 
       {/* Plans */}
@@ -104,13 +135,18 @@ export default function SubscriptionPage() {
                 Current Plan
               </div>
             )}
+            {plan.highlighted && plan.id !== userPlan && (
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+                Most Popular
+              </div>
+            )}
             <div className="mb-6">
               <h3 className="text-lg font-semibold">{plan.name}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
             </div>
             <div className="mb-6">
-              <span className="text-4xl font-bold">${plan.price}</span>
-              <span className="text-muted-foreground">/{plan.period}</span>
+              <span className="text-4xl font-bold">{plan.price === 0 ? "Free" : `\u20B9${plan.price}`}</span>
+              {plan.price > 0 && <span className="text-muted-foreground">/{plan.period}</span>}
             </div>
             <ul className="mb-6 space-y-3">
               {plan.features.map((feature) => (
@@ -145,17 +181,23 @@ export default function SubscriptionPage() {
           <div className="flex items-center justify-between rounded-xl bg-muted/30 p-4">
             <div>
               <p className="font-medium">Next billing date</p>
-              <p className="text-sm text-muted-foreground">N/A</p>
+              <p className="text-sm text-muted-foreground">
+                {userPlan === "free" ? "N/A" : "Auto-renews monthly"}
+              </p>
             </div>
-            <p className="text-lg font-bold">$0.00</p>
+            <p className="text-lg font-bold">
+              {userPlan === "free" ? "\u20B90" : userPlan === "pro" ? "\u20B9250" : "\u20B9450"}
+            </p>
           </div>
-          <div className="flex items-center justify-between rounded-xl bg-muted/30 p-4">
-            <div>
-              <p className="font-medium">Payment method</p>
-              <p className="text-sm text-muted-foreground">No payment method</p>
+          {userPlan !== "free" && (
+            <div className="flex items-center justify-between rounded-xl bg-muted/30 p-4">
+              <div>
+                <p className="font-medium">Payment method</p>
+                <p className="text-sm text-muted-foreground">Coming soon</p>
+              </div>
+              <Button variant="ghost" size="sm" disabled>Update</Button>
             </div>
-            <Button variant="ghost" size="sm">Update</Button>
-          </div>
+          )}
         </div>
       </motion.div>
     </div>

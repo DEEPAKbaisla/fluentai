@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,30 +8,26 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Avatar } from "@/components/avatar";
+import { SettingsSkeleton } from "@/components/dashboard-skeletons";
 import { useSession } from "next-auth/react";
-
-const voices = [
-  { id: "sarah", name: "Sarah", accent: "American" },
-  { id: "james", name: "James", accent: "British" },
-  { id: "emma", name: "Emma", accent: "Australian" },
-  { id: "lucas", name: "Lucas", accent: "Canadian" },
-];
+import { toast } from "sonner";
 
 const accents = [
-  "American",
-  "British",
-  "Australian",
-  "Canadian",
-  "Indian",
-  "South African",
+  { code: "en-US", label: "American", flag: "🇺🇸", description: "US English accent" },
+  { code: "en-GB", label: "British", flag: "🇬🇧", description: "UK English accent" },
+  { code: "en-AU", label: "Australian", flag: "🇦🇺", description: "Australian English accent" },
+  { code: "en-IN", label: "Indian", flag: "🇮🇳", description: "Indian English accent" },
 ];
 
 export default function SettingsPage() {
   const { data: session, update: updateSession } = useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState("sarah");
-  const [selectedAccent, setSelectedAccent] = useState("American");
+  const [selectedAccent, setSelectedAccent] = useState("en-US");
+  const [accentSaving, setAccentSaving] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [notifications, setNotifications] = useState({
     email: true,
     push: true,
@@ -40,28 +36,94 @@ export default function SettingsPage() {
   });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/user/profile")
-      .then((r) => r.json())
-      .then((data) => {
-        setName(data.name || "");
-        setEmail(data.email || "");
-      });
+    Promise.all([
+      fetch("/api/user/profile")
+        .then((r) => r.json())
+        .then((data) => {
+          setName(data.name || "");
+          setEmail(data.email || "");
+          setImagePreview(data.image || null);
+        }),
+      fetch("/api/user/settings")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.accent) setSelectedAccent(data.accent);
+        }),
+    ]).finally(() => setLoading(false));
   }, []);
+
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be under 2MB");
+      return;
+    }
+
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
 
   async function handleSave() {
     setSaving(true);
     setSaved(false);
-    await fetch("/api/user/profile", {
+
+    let imageUrl: string | undefined;
+
+    if (imageFile) {
+      const formData = new FormData();
+      formData.append("file", imageFile);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!uploadRes.ok) {
+        toast.error("Failed to upload image");
+        setSaving(false);
+        return;
+      }
+      const { url } = await uploadRes.json();
+      imageUrl = url;
+    }
+
+    const body: { name: string; image?: string } = { name };
+    if (imageUrl) {
+      body.image = imageUrl;
+    }
+
+    const res = await fetch("/api/user/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
     });
-    await updateSession();
+
+    if (res.ok) {
+      await updateSession();
+      setImageFile(null);
+      toast.success("Profile updated!");
+    } else {
+      toast.error("Failed to update profile");
+    }
+
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  }
+
+  async function handleAccentChange(code: string) {
+    setSelectedAccent(code);
+    setAccentSaving(true);
+    await fetch("/api/user/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accent: code }),
+    });
+    setAccentSaving(false);
   }
 
   const userInitials = name
@@ -72,6 +134,10 @@ export default function SettingsPage() {
     .slice(0, 2) || "U";
 
   const userImage = session?.user?.image || null;
+
+  if (loading) {
+    return <SettingsSkeleton />;
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
@@ -95,9 +161,20 @@ export default function SettingsPage() {
       >
         <h2 className="mb-4 text-lg font-semibold">Profile</h2>
         <div className="flex items-center gap-4">
-          <Avatar src={userImage || undefined} fallback={userInitials} size="xl" />
+          <Avatar src={imagePreview || undefined} fallback={userInitials} size="xl" />
           <div>
-            <Button variant="outline" size="sm">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+            >
               Change Photo
             </Button>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -130,61 +207,43 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      {/* Voice Selection */}
+      {/* AI Accent */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.2 }}
         className="rounded-2xl border border-border/50 bg-card p-6"
       >
-        <h2 className="mb-4 text-lg font-semibold">Voice Selection</h2>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">AI Accent</h2>
+            <p className="text-sm text-muted-foreground">Choose how your AI coach sounds</p>
+          </div>
+          {accentSaving && (
+            <span className="text-xs text-muted-foreground">Saving...</span>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          {voices.map((voice) => (
+          {accents.map((accent) => (
             <button
-              key={voice.id}
-              onClick={() => setSelectedVoice(voice.id)}
+              key={accent.code}
+              onClick={() => handleAccentChange(accent.code)}
+              disabled={accentSaving}
               className={`rounded-xl border p-4 text-left transition-all ${
-                selectedVoice === voice.id
-                  ? "border-primary bg-primary/10"
-                  : "border-border/50 hover:border-border"
+                selectedAccent === accent.code
+                  ? "border-primary bg-primary/10 shadow-sm"
+                  : "border-border/50 hover:border-border hover:bg-muted/50"
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-                  <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                  </svg>
-                </div>
+                <span className="text-2xl">{accent.flag}</span>
                 <div>
-                  <p className="font-medium">{voice.name}</p>
-                  <p className="text-xs text-muted-foreground">{voice.accent}</p>
+                  <p className={`font-medium ${selectedAccent === accent.code ? "text-primary" : ""}`}>
+                    {accent.label}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{accent.description}</p>
                 </div>
               </div>
-            </button>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* Accent Selection */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.3 }}
-        className="rounded-2xl border border-border/50 bg-card p-6"
-      >
-        <h2 className="mb-4 text-lg font-semibold">Target Accent</h2>
-        <div className="grid grid-cols-3 gap-2">
-          {accents.map((accent) => (
-            <button
-              key={accent}
-              onClick={() => setSelectedAccent(accent)}
-              className={`rounded-lg border p-3 text-sm transition-all ${
-                selectedAccent === accent
-                  ? "border-primary bg-primary/10 font-medium"
-                  : "border-border/50 text-muted-foreground hover:border-border"
-              }`}
-            >
-              {accent}
             </button>
           ))}
         </div>
@@ -194,7 +253,7 @@ export default function SettingsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.4 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
         className="rounded-2xl border border-border/50 bg-card p-6"
       >
         <h2 className="mb-4 text-lg font-semibold">Notifications</h2>
@@ -225,7 +284,7 @@ export default function SettingsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.5 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
         className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6"
       >
         <h2 className="mb-4 text-lg font-semibold text-destructive">Danger Zone</h2>

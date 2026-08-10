@@ -112,7 +112,7 @@ function HeroSection() {
           transition={{ duration: 0.5, delay: 0.3 }}
           className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
         >
-          <Link href="/practice">
+          <Link href="/dashboard/practice">
             <Button
               size="lg"
               className="relative overflow-hidden rounded-full px-8 py-6 text-base font-medium shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30"

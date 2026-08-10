@@ -14,6 +14,7 @@ model User {
   image         String?
   password      String?
   plan          String    @default("free")
+  accent        String    @default("en-US")
   streak        Int       @default(0)
   joinedAt      DateTime  @default(now())
   accounts      Account[]
@@ -22,6 +23,7 @@ model User {
   userAchievements  UserAchievement[]
   weakestWords      WeakestWord[]
   repeatedMistakes  RepeatedMistake[]
+  usageTracking     UsageTracking[]
 }
 
 model Account {
@@ -74,13 +76,17 @@ model Conversation {
 }
 
 model Message {
-  id             String       @id @default(cuid())
-  conversationId String
-  role           String
-  content        String
-  timestamp      DateTime     @default(now())
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  corrections    Correction[]
+  id                String       @id @default(cuid())
+  conversationId    String
+  role              String
+  content           String
+  correctedSentence String?
+  encouragement     String?
+  pronunciationTips Json?
+  scores            Json?
+  timestamp         DateTime     @default(now())
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  corrections       Correction[]
 
   @@index([conversationId])
 }
@@ -126,14 +132,33 @@ model PracticeTopic {
 }
 
 model PricingPlan {
-  id          String   @id @default(cuid())
-  name        String
-  price       Int
-  period      String   @default("month")
-  description String
-  features    String[]
-  cta         String
-  highlighted Boolean  @default(false)
+  id                  String   @id @default(cuid())
+  name                String
+  price               Int
+  period              String   @default("month")
+  description         String
+  features            String[]
+  cta                 String
+  highlighted         Boolean  @default(false)
+  dailyLimitMinutes   Int      @default(0)
+  monthlyLimitMinutes Int      @default(0)
+  maxSessionMinutes   Int      @default(0)
+}
+
+model UsageTracking {
+  id                  String   @id @default(cuid())
+  userId              String
+  date                DateTime @db.Date
+  dailyMinutesUsed    Int      @default(0)
+  monthlyMinutesUsed  Int      @default(0)
+  sessionsToday       Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }
 
 model WeakestWord {

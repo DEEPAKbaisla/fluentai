@@ -57,11 +57,13 @@ export function PricingSection() {
               </div>
               <div className="mb-6">
                 <span className="text-4xl font-bold">
-                  ${plan.price}
+                  {plan.price === 0 ? "Free" : `\u20B9${plan.price}`}
                 </span>
-                <span className="text-muted-foreground">
-                  /{plan.period}
-                </span>
+                {plan.price > 0 && (
+                  <span className="text-muted-foreground">
+                    /{plan.period}
+                  </span>
+                )}
               </div>
               <ul className="mb-6 space-y-3">
                 {plan.features.map((feature) => (

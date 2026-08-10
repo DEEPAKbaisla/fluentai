@@ -9,6 +9,7 @@ interface CorrectionCardProps {
   corrected: string;
   explanation: string;
   index?: number;
+  onSpeak?: (text: string) => void;
 }
 
 export function CorrectionCard({
@@ -17,6 +18,7 @@ export function CorrectionCard({
   corrected,
   explanation,
   index = 0,
+  onSpeak,
 }: CorrectionCardProps) {
   const typeConfig = {
     grammar: {
@@ -66,6 +68,8 @@ export function CorrectionCard({
   };
 
   const config = typeConfig[type];
+  const isPronunciation = type === "pronunciation";
+  const speakTarget = isPronunciation ? original : corrected;
 
   return (
     <motion.div
@@ -83,15 +87,42 @@ export function CorrectionCard({
             <span className={cn("text-xs font-medium", config.color)}>
               {config.label}
             </span>
+            {onSpeak && (
+              <button
+                onClick={() => onSpeak(speakTarget)}
+                className={cn(
+                  "ml-auto shrink-0 rounded-full p-1 transition-colors",
+                  config.bg,
+                  "hover:bg-white/10",
+                  config.color
+                )}
+                title={`Listen to "${speakTarget}"`}
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+              </button>
+            )}
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground line-through">{original}</span>
-            <svg className="h-3 w-3 shrink-0 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-            <span className="font-medium text-foreground">{corrected}</span>
-          </div>
-          <p className="text-xs text-muted-foreground">{explanation}</p>
+          {isPronunciation ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-semibold text-foreground">{original}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{explanation}</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground line-through">{original}</span>
+                <svg className="h-3 w-3 shrink-0 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                <span className="font-medium text-foreground">{corrected}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{explanation}</p>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

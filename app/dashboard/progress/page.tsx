@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { AchievementBadge } from "@/components/avatar";
+import { ProgressSkeleton } from "@/components/dashboard-skeletons";
 import {
   LineChart,
   Line,
@@ -20,6 +21,12 @@ interface MonthlyData {
   pronunciation: number;
   vocabulary: number;
   fluency: number;
+}
+
+interface CalendarDay {
+  date: string;
+  sessions: number;
+  active: boolean;
 }
 
 interface WeakestWord {
@@ -46,24 +53,27 @@ interface Achievement {
 
 export default function ProgressPage() {
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [calendarData, setCalendarData] = useState<CalendarDay[]>([]);
   const [weakestWords, setWeakestWords] = useState<WeakestWord[]>([]);
   const [repeatedMistakes, setRepeatedMistakes] = useState<RepeatedMistake[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [calendarData] = useState(() =>
-    Array.from({ length: 28 }, (_, i) => {
-      const seed = ((i * 7 + 13) % 100) / 100;
-      return seed;
-    })
-  );
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/progress/monthly").then((r) => r.json()).then(setMonthlyData);
-    fetch("/api/progress/weakest-words").then((r) => r.json()).then(setWeakestWords);
-    fetch("/api/progress/repeated-mistakes").then((r) => r.json()).then(setRepeatedMistakes);
-    fetch("/api/achievements").then((r) => r.json()).then(setAchievements);
+    Promise.all([
+      fetch("/api/progress/monthly").then((r) => r.json()).then(setMonthlyData),
+      fetch("/api/progress/calendar").then((r) => r.json()).then(setCalendarData),
+      fetch("/api/progress/weakest-words").then((r) => r.json()).then(setWeakestWords),
+      fetch("/api/progress/repeated-mistakes").then((r) => r.json()).then(setRepeatedMistakes),
+      fetch("/api/achievements").then((r) => r.json()).then(setAchievements),
+    ]).finally(() => setLoading(false));
   }, []);
 
   const hasMonthlyData = monthlyData.some((d) => d.grammar > 70 || d.pronunciation > 70);
+
+  if (loading) {
+    return <ProgressSkeleton />;
+  }
 
   return (
     <div className="space-y-8">
@@ -121,23 +131,78 @@ export default function ProgressPage() {
         className="rounded-2xl border border-border/50 bg-card p-6"
       >
         <h2 className="mb-4 text-lg font-semibold">Practice Calendar</h2>
-        <div className="grid grid-cols-7 gap-1">
-          {calendarData.map((intensity, i) => (
-            <div
-              key={i}
-              className="aspect-square rounded-sm"
-              style={{
-                backgroundColor:
-                  intensity > 0.7
-                    ? "var(--primary)"
-                    : intensity > 0.4
-                      ? "var(--primary)"
-                      : "var(--muted)",
-                opacity: intensity > 0.1 ? 0.3 + intensity * 0.7 : 0.1,
-              }}
-            />
-          ))}
+        <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+          <span>Sun</span>
+          <span>Mon</span>
+          <span>Tue</span>
+          <span>Wed</span>
+          <span>Thu</span>
+          <span>Fri</span>
+          <span>Sat</span>
         </div>
+        {calendarData.length > 0 ? (
+          <div className="grid grid-cols-7 gap-1">
+            {(() => {
+              const firstDay = new Date(calendarData[0]?.date).getDay();
+              const blanks = Array.from({ length: firstDay }, (_, i) => (
+                <div key={`blank-${i}`} className="aspect-square" />
+              ));
+              return [
+                ...blanks,
+                ...calendarData.map((day) => {
+                  const dayNum = new Date(day.date).getDate();
+                  const maxSessions = Math.max(...calendarData.map((d) => d.sessions), 1);
+                  const intensity = day.sessions / maxSessions;
+                  return (
+                    <div
+                      key={day.date}
+                      className={`group relative aspect-square rounded-sm transition-colors ${
+                        day.sessions > 0
+                          ? "cursor-pointer"
+                          : ""
+                      }`}
+                      style={{
+                        backgroundColor: day.sessions > 0
+                          ? `var(--primary)`
+                          : "var(--muted)",
+                        opacity: day.sessions > 0 ? 0.3 + intensity * 0.7 : 0.15,
+                      }}
+                      title={`${day.date}: ${day.sessions} session${day.sessions !== 1 ? "s" : ""}`}
+                    >
+                      <span className={`absolute inset-0 flex items-center justify-center text-xs font-medium ${
+                        day.sessions > 0 ? "text-primary-foreground" : "text-white"
+                      }`}>
+                        {dayNum}
+                      </span>
+                    </div>
+                  );
+                }),
+              ];
+            })()}
+          </div>
+        ) : (
+          <div className="flex h-32 items-center justify-center text-muted-foreground">
+            <p className="text-sm">No practice data yet. Start a session to see your calendar.</p>
+          </div>
+        )}
+        {calendarData.length > 0 && (
+          <div className="mt-3 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+            <span>Less</span>
+            <div className="flex gap-0.5">
+              {[0.15, 0.35, 0.55, 0.75, 1].map((opacity) => (
+                <div
+                  key={opacity}
+                  className="h-3 w-3 rounded-sm"
+                  style={{
+                    backgroundColor: "var(--primary)",
+                    opacity,
+                  }}
+                />
+              ))}
+            </div>
+            <span>More</span>
+          </div>
+        )}
       </motion.div>
 
       {/* Weakest Words & Mistakes */}

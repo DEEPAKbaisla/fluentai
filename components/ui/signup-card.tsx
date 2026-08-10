@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DotMap } from "./dot-map";
-import { loginWithGoogle } from "@/lib/actions/auth";
+import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 
 export function SignUpCard() {
@@ -152,7 +152,7 @@ export function SignUpCard() {
               <Button
                 variant="outline"
                 className="w-full rounded-full h-11 font-medium"
-                onClick={() => loginWithGoogle()}
+                onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                 type="button"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">

@@ -3,6 +3,8 @@ import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/client-providers";
 
+export const dynamic = "force-dynamic";
+
 const dmSans = DM_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
