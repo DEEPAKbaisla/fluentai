@@ -67,7 +67,7 @@ export async function getMonthlyUsage(userId: string) {
     },
   });
 
-  return records.reduce((sum, r) => sum + r.monthlyMinutesUsed, 0);
+  return records.reduce((sum: number, r: any) => sum + r.monthlyMinutesUsed, 0);
 }
 
 export interface UsageCheck {

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { chatWithGemini } from "@/lib/ai";
-import { Prisma } from "@prisma/client";
 import { getPlanLimits } from "@/lib/limits";
 
 export async function POST(request: Request) {
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
       },
     });
 
-    const history = conversation.messages.map((m) => ({
+    const history = conversation.messages.map((m: any) => ({
       role: m.role as "user" | "model",
       text: m.content,
     }));
@@ -82,7 +81,7 @@ export async function POST(request: Request) {
         correctedSentence: coachResponse.corrected_sentence || undefined,
         encouragement: coachResponse.encouragement || undefined,
         pronunciationTips: coachResponse.pronunciation?.length
-          ? (coachResponse.pronunciation as unknown as Prisma.InputJsonValue)
+          ? (coachResponse.pronunciation as unknown as any)
           : undefined,
         scores: {
           grammar_score: coachResponse.grammar_score,
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
           fluency_score: coachResponse.fluency_score,
           confidence_score: coachResponse.confidence_score,
           overall_score: coachResponse.overall_score,
-        } as unknown as Prisma.InputJsonValue,
+        } as unknown as any,
       },
     });
 

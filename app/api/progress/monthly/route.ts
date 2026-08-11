@@ -24,7 +24,7 @@ export async function GET() {
     date.setDate(date.getDate() - 29 + i);
     const dateStr = `${date.toLocaleString("default", { month: "short" })} ${date.getDate()}`;
 
-    const dayConversations = conversations.filter((c) => {
+    const dayConversations = conversations.filter((c: any) => {
       const cDate = new Date(c.date);
       return cDate.toDateString() === date.toDateString();
     });
@@ -32,7 +32,7 @@ export async function GET() {
     function avg(field: "grammarScore" | "pronunciationScore" | "vocabularyScore" | "fluencyScore") {
       if (dayConversations.length === 0) return 70;
       return Math.round(
-        dayConversations.reduce((sum, c) => sum + c[field], 0) /
+        dayConversations.reduce((sum: number, c: any) => sum + c[field], 0) /
           dayConversations.length
       );
     }

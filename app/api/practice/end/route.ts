@@ -79,17 +79,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const userMessages = conversation.messages.filter((m) => m.role === "user");
-    const aiMessages = conversation.messages.filter((m) => m.role === "ai");
+    const userMessages = conversation.messages.filter((m: any) => m.role === "user");
+    const aiMessages = conversation.messages.filter((m: any) => m.role === "ai");
     const totalCorrections = conversation.messages.reduce(
-      (acc, m) => acc + m.corrections.length,
+      (acc: number, m: any) => acc + m.corrections.length,
       0
     );
 
     const correctionTypes = conversation.messages
-      .flatMap((m) => m.corrections)
+      .flatMap((m: any) => m.corrections)
       .reduce(
-        (acc, c) => {
+        (acc: Record<string, number>, c: any) => {
           acc[c.type] = (acc[c.type] || 0) + 1;
           return acc;
         },
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     const grammarErrors = correctionTypes["grammar"] || 0;
     const vocabErrors = correctionTypes["vocabulary"] || 0;
 
-    const hasAiScores = aiMessages.some((m) => m.scores != null);
+    const hasAiScores = aiMessages.some((m: any) => m.scores != null);
 
     let scores;
     if (hasAiScores) {
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
 
     await recordSessionUsage(session.user.id, clampedMinutes);
 
-    for (const correction of conversation.messages.flatMap((m) => m.corrections)) {
+    for (const correction of conversation.messages.flatMap((m: any) => m.corrections)) {
       const existing = await db.repeatedMistake.findFirst({
         where: {
           userId: session.user.id,
@@ -168,8 +168,8 @@ export async function POST(request: Request) {
     }
 
     const vocabCorrections = conversation.messages
-      .flatMap((m) => m.corrections)
-      .filter((c) => c.type === "vocabulary" || c.type === "pronunciation");
+      .flatMap((m: any) => m.corrections)
+      .filter((c: any) => c.type === "vocabulary" || c.type === "pronunciation");
 
     for (const correction of vocabCorrections) {
       const word = correction.original.toLowerCase().trim();

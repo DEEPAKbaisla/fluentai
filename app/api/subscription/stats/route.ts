@@ -14,11 +14,11 @@ export async function GET() {
   });
 
   const totalSessions = conversations.length;
-  const totalMinutes = conversations.reduce((sum, c) => sum + c.duration, 0);
+  const totalMinutes = conversations.reduce((sum: number, c: any) => sum + c.duration, 0);
   const avgScore =
     totalSessions > 0
       ? Math.round(
-          conversations.reduce((sum, c) => sum + c.overallScore, 0) /
+          conversations.reduce((sum: number, c: any) => sum + c.overallScore, 0) /
             totalSessions
         )
       : 0;

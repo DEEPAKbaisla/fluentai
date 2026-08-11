@@ -16,7 +16,7 @@ export async function GET() {
     },
   });
 
-  const result = achievements.map((a) => ({
+  const result = achievements.map((a: any) => ({
     id: a.id,
     title: a.title,
     description: a.description,

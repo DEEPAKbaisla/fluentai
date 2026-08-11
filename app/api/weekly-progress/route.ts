@@ -25,7 +25,7 @@ export async function GET() {
     date.setDate(date.getDate() - 6 + i);
     const dayName = dayNames[date.getDay()];
 
-    const dayConversations = conversations.filter((c) => {
+    const dayConversations = conversations.filter((c: any) => {
       const cDate = new Date(c.date);
       return cDate.toDateString() === date.toDateString();
     });
@@ -33,13 +33,13 @@ export async function GET() {
     const avgScore =
       dayConversations.length > 0
         ? Math.round(
-            dayConversations.reduce((sum, c) => sum + c.overallScore, 0) /
+            dayConversations.reduce((sum: number, c: any) => sum + c.overallScore, 0) /
               dayConversations.length
           )
         : 0;
 
     const totalMinutes = dayConversations.reduce(
-      (sum, c) => sum + Math.round(c.duration / 60),
+      (sum: number, c: any) => sum + Math.round(c.duration / 60),
       0
     );
 

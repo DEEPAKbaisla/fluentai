@@ -35,7 +35,7 @@ export async function GET() {
       const dayEnd = new Date(now.getFullYear(), now.getMonth(), day, 23, 59, 59);
 
       const sessionsOnDay = conversations.filter(
-        (c) => c.date >= dayStart && c.date <= dayEnd
+        (c: any) => c.date >= dayStart && c.date <= dayEnd
       ).length;
 
       calendarData.push({
