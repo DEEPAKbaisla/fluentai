@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -125,12 +125,12 @@ export function Navbar() {
               </a>
             ))}
             <div className="mt-4 space-y-2 border-t border-border/50 pt-4">
-              <Link href="/login" onClick={() => setMobileOpen(false)}>
+              <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
                 <Button variant="ghost" className="w-full justify-start">
                   Log in
                 </Button>
               </Link>
-              <Link href="/register" onClick={() => setMobileOpen(false)}>
+              <Link href="/auth/register" onClick={() => setMobileOpen(false)}>
                 <Button className="w-full rounded-full">Get Started</Button>
               </Link>
             </div>
