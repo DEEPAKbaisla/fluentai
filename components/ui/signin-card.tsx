@@ -38,8 +38,7 @@ export function SignInCard() {
         initial={{ opacity: 0, scale: 0.97 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-4xl overflow-hidden rounded-2xl flex bg-card shadow-2xl border border-border/50"
-      >
+        className="w-full max-w-4xl overflow-hidden rounded-2xl flex bg-card shadow-2xl border border-border/50">
         {/* Left side - Animated Visual */}
         <div className="hidden md:block w-1/2 h-[620px] relative overflow-hidden border-r border-border/50">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/10">
@@ -56,8 +55,7 @@ export function SignInCard() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
-                className="mb-6"
-              >
+                className="mb-6">
                 <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
                   <Mic className="text-white h-7 w-7" />
                 </div>
@@ -66,16 +64,14 @@ export function SignInCard() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5, duration: 0.5 }}
-                className="text-3xl font-bold mb-3 text-center gradient-text"
-              >
+                className="text-3xl font-bold mb-3 text-center gradient-text">
                 FluentAI
               </motion.h2>
               <motion.p
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6, duration: 0.5 }}
-                className="text-sm text-center text-muted-foreground max-w-xs leading-relaxed"
-              >
+                className="text-sm text-center text-muted-foreground max-w-xs leading-relaxed">
                 Speak naturally with AI and master English with real-time
                 corrections
               </motion.p>
@@ -85,8 +81,7 @@ export function SignInCard() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8, duration: 0.5 }}
-                className="mt-8 grid grid-cols-3 gap-4 w-full max-w-xs"
-              >
+                className="mt-8 grid grid-cols-3 gap-4 w-full max-w-xs">
                 {[
                   { value: "50K+", label: "Learners" },
                   { value: "92%", label: "Accuracy" },
@@ -111,8 +106,7 @@ export function SignInCard() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
+            transition={{ duration: 0.5, delay: 0.2 }}>
             <h1 className="text-2xl md:text-3xl font-bold mb-1 text-foreground">
               Welcome back
             </h1>
@@ -121,7 +115,7 @@ export function SignInCard() {
             </p>
 
             {/* Google Sign In */}
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <Button
                 variant="outline"
                 className="w-full rounded-full h-11 font-medium"
@@ -150,17 +144,17 @@ export function SignInCard() {
                 </svg>
                 <span>Login with Google</span>
               </Button>
-            </div>
+            </div> */}
 
             {/* Divider */}
-            <div className="relative my-6">
+            {/* <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border"></div>
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-card text-muted-foreground">or</span>
               </div>
-            </div>
+            </div> */}
 
             {/* Form */}
             <form className="space-y-5" onSubmit={handleSubmit}>
@@ -199,8 +193,7 @@ export function SignInCard() {
                     onClick={() => setIsPasswordVisible(!isPasswordVisible)}
                     aria-label={
                       isPasswordVisible ? "Hide password" : "Show password"
-                    }
-                  >
+                    }>
                     {isPasswordVisible ? (
                       <EyeOff size={18} />
                     ) : (
@@ -221,15 +214,13 @@ export function SignInCard() {
                 whileTap={{ scale: 0.98 }}
                 onHoverStart={() => setIsHovered(true)}
                 onHoverEnd={() => setIsHovered(false)}
-                className="pt-2"
-              >
+                className="pt-2">
                 <Button
                   type="submit"
                   disabled={loading}
                   className={`w-full h-11 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white transition-all duration-300 ${
                     isHovered ? "shadow-lg shadow-indigo-500/25" : ""
-                  }`}
-                >
+                  }`}>
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
@@ -244,8 +235,7 @@ export function SignInCard() {
               <div className="text-center">
                 <Link
                   href="/auth/forgot-password"
-                  className="text-sm text-indigo-500 hover:text-indigo-600 transition-colors"
-                >
+                  className="text-sm text-indigo-500 hover:text-indigo-600 transition-colors">
                   Forgot password?
                 </Link>
               </div>
@@ -255,8 +245,7 @@ export function SignInCard() {
               Don&apos;t have an account?{" "}
               <Link
                 href="/auth/register"
-                className="font-medium text-indigo-500 hover:text-indigo-600 transition-colors"
-              >
+                className="font-medium text-indigo-500 hover:text-indigo-600 transition-colors">
                 Sign up
               </Link>
             </p>
