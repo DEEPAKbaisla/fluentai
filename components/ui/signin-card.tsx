@@ -115,7 +115,7 @@ export function SignInCard() {
             </p>
 
             {/* Google Sign In */}
-            {/* <div className="mb-6">
+            <div className="mb-6">
               <Button
                 variant="outline"
                 className="w-full rounded-full h-11 font-medium"
@@ -144,17 +144,17 @@ export function SignInCard() {
                 </svg>
                 <span>Login with Google</span>
               </Button>
-            </div> */}
+            </div>
 
             {/* Divider */}
-            {/* <div className="relative my-6">
+            <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border"></div>
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-card text-muted-foreground">or</span>
               </div>
-            </div> */}
+            </div>
 
             {/* Form */}
             <form className="space-y-5" onSubmit={handleSubmit}>
