@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 
-const groq = new OpenAI({
+export const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: "https://api.groq.com/openai/v1",
 });
+
+export const CHAT_MODEL = "openai/gpt-oss-120b";
+export const STT_MODEL = "whisper-large-v3-turbo";
 
 export interface GrammarCorrection {
   original: string;
@@ -35,6 +38,7 @@ export interface CoachResponse {
   confidence_score: number;
   overall_score: number;
   encouragement: string;
+  off_topic?: boolean;
 }
 
 export interface Correction {
@@ -54,6 +58,15 @@ const SYSTEM_PROMPT = `You are FluentAI, the world's best English-speaking coach
 
 Your role is to help users become fluent English speakers through natural conversation.
 
+TOPIC FOCUS (CRITICAL):
+- This is a focused practice session on ONE topic only: the "Current conversation topic" given below.
+- Short conversational glue ("yes", "no", "haha", "ok", greetings) is always on-topic.
+- ANY other message that is clearly unrelated to the session topic — tangents, questions about unrelated subjects, requests to switch topics — is OFF-TOPIC.
+- When a message is off-topic:
+  1. Set "off_topic": true.
+  2. In "ai_response", do NOT answer or engage with the off-topic content. Instead, in 1-2 warm sentences: briefly acknowledge what they said, remind them this session is focused practice on the current topic, and ask an engaging question back on-topic. If they asked to change the topic, kindly note they can end this session and start a new one on any topic they like.
+- When "off_topic" is true: "grammar", "vocabulary" and "pronunciation" must be empty arrays, all scores must be 0, "corrected_sentence" repeats their message unchanged, and "encouragement" gently nudges them back to the topic.
+
 RULES:
 1. Talk naturally like a real person.
 2. Never interrupt while the user is speaking.
@@ -66,6 +79,7 @@ For every user message, return JSON in the following format:
 
 {
   "ai_response": "...",
+  "off_topic": false,
   "corrected_sentence": "...",
   "grammar": [
     {
@@ -98,6 +112,7 @@ For every user message, return JSON in the following format:
 
 IMPORTANT INSTRUCTIONS:
 - Your conversational response goes in "ai_response". Keep it 2-4 sentences, warm and engaging.
+- "off_topic" must be true ONLY when the user's message is clearly unrelated to the session topic (see TOPIC FOCUS). Otherwise it must be false.
 - "corrected_sentence" should be the user's sentence with all corrections applied. If no corrections needed, repeat their sentence as-is.
 - Scores should be 0-100. Be generous but honest. Base them on the user's actual message quality.
 - "encouragement" should be a brief motivational note (1 sentence).
@@ -109,7 +124,7 @@ IMPORTANT INSTRUCTIONS:
 - Do NOT put corrections inline in your response text. Only in the JSON.
 - Be supportive and motivating. Never shame the user for mistakes. Keep the conversation engaging and ask follow-up questions when appropriate.`;
 
-const MODEL = "llama-3.3-70b-versatile";
+const MODEL = CHAT_MODEL;
 
 const FALLBACK_COACH: CoachResponse = {
   ai_response: "",
@@ -124,6 +139,7 @@ const FALLBACK_COACH: CoachResponse = {
   confidence_score: 75,
   overall_score: 75,
   encouragement: "Keep going! Every conversation makes you stronger.",
+  off_topic: false,
 };
 
 async function callGroq(messages: OpenAI.ChatCompletionMessageParam[]) {
@@ -134,7 +150,7 @@ async function callGroq(messages: OpenAI.ChatCompletionMessageParam[]) {
         model: MODEL,
         messages,
         temperature: 0.7,
-        max_tokens: 800,
+        max_tokens: 1024,
       });
       return response.choices[0].message.content || "";
     } catch (err: any) {
@@ -238,6 +254,22 @@ function generateLocalResponse(userMessage: string, topic: string): CoachRespons
   };
 }
 
+function normalizeOffTopic(coach: CoachResponse): CoachResponse {
+  if (!coach.off_topic) return coach;
+  return {
+    ...coach,
+    grammar: [],
+    vocabulary: [],
+    pronunciation: [],
+    fluency_score: 0,
+    grammar_score: 0,
+    pronunciation_score: 0,
+    vocabulary_score: 0,
+    confidence_score: 0,
+    overall_score: 0,
+  };
+}
+
 export async function chatWithGemini(
   topic: string,
   history: Array<{ role: "user" | "model" | "ai"; text: string }>,
@@ -258,10 +290,11 @@ export async function chatWithGemini(
     const coach = extractJsonFromResponse(rawText);
 
     if (coach) {
+      const normalized = normalizeOffTopic(coach);
       return {
-        response: coach.ai_response,
-        corrections: coachToCorrections(coach),
-        coachResponse: coach,
+        response: normalized.ai_response,
+        corrections: coachToCorrections(normalized),
+        coachResponse: normalized,
       };
     }
 

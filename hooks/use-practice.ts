@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useSpeechRecognition } from "./use-speech-recognition";
+import { useAudioRecorder } from "./use-audio-recorder";
 import { useSpeechSynthesis } from "./use-speech-synthesis";
+import { transcribeAudio } from "@/lib/stt";
 
 export interface Correction {
   type: "grammar" | "vocabulary" | "pronunciation" | "fluency";
@@ -62,6 +63,7 @@ export function usePractice() {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [scores, setScores] = useState<PracticeScores | null>(null);
   const [isAiThinking, setIsAiThinking] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [accent, setAccent] = useState("en-US");
@@ -71,7 +73,7 @@ export function usePractice() {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const sessionStartTimeRef = useRef<number | null>(null);
 
-  const speech = useSpeechRecognition();
+  const recorder = useAudioRecorder();
   const tts = useSpeechSynthesis(accent);
 
   useEffect(() => {
@@ -184,6 +186,10 @@ export function usePractice() {
     }
   }, [status, topic, startConversation]);
 
+  const stopSpeech = useCallback(() => {
+    recorder.stopRecording().then(() => undefined);
+  }, [recorder]);
+
   const sendUserMessage = useCallback(async (text: string) => {
     if (!conversationId || !text.trim()) return;
 
@@ -222,7 +228,7 @@ export function usePractice() {
 
       if (data.limitReached) {
         stopTimer();
-        speech.stopListening();
+        stopSpeech();
         tts.stop();
         fetchUsage();
         setStatus("ending");
@@ -251,26 +257,36 @@ export function usePractice() {
       setIsAiThinking(false);
       setError("Failed to get response");
     }
-  }, [conversationId, tts]);
+  }, [conversationId, duration, tts, stopSpeech]);
 
-  const toggleListening = useCallback(() => {
-    if (speech.isPaused) {
-      speech.resumeListening();
-    } else if (speech.isListening) {
-      speech.stopListening();
-      if (speech.transcript.trim()) {
-        sendUserMessage(speech.transcript);
+  const toggleListening = useCallback(async () => {
+    if (recorder.isPaused) {
+      recorder.resumeRecording();
+    } else if (recorder.isRecording) {
+      const blob = await recorder.stopRecording();
+      if (!blob) return;
+
+      setIsTranscribing(true);
+      try {
+        const text = await transcribeAudio(blob);
+        if (text) {
+          await sendUserMessage(text);
+        }
+      } catch {
+        console.warn("Transcription failed");
+      } finally {
+        setIsTranscribing(false);
       }
     } else {
-      speech.startListening();
+      recorder.startRecording();
     }
-  }, [speech, sendUserMessage]);
+  }, [recorder, sendUserMessage]);
 
   const endConversation = useCallback(async () => {
     if (!conversationId) return;
 
     stopTimer();
-    speech.stopListening();
+    stopSpeech();
     tts.stop();
     setStatus("ending");
 
@@ -298,11 +314,11 @@ export function usePractice() {
       setStatus("completed");
       fetchUsage();
     }
-  }, [conversationId, duration, stopTimer, speech, tts, fetchUsage]);
+  }, [conversationId, duration, stopTimer, stopSpeech, tts, fetchUsage]);
 
   const reset = useCallback(() => {
     stopTimer();
-    speech.stopListening();
+    stopSpeech();
     tts.stop();
     setStatus("idle");
     setTopic("");
@@ -313,7 +329,7 @@ export function usePractice() {
     setDuration(0);
     setError(null);
     setSessionTimeRemaining(null);
-  }, [stopTimer, speech, tts]);
+  }, [stopTimer, stopSpeech, tts]);
 
   return {
     status,
@@ -325,20 +341,20 @@ export function usePractice() {
     error,
     usage,
     sessionTimeRemaining,
-    isListening: speech.isListening,
-    isPaused: speech.isPaused,
-    interimTranscript: speech.interimTranscript,
+    isListening: recorder.isRecording,
+    isPaused: recorder.isPaused,
+    isTranscribing,
     isSpeaking: tts.isSpeaking,
-    isSpeechSupported: speech.isSupported,
+    isSpeechSupported: recorder.isSupported,
     speak: tts.speak,
     stopSpeaking: tts.stop,
-    pauseListening: speech.pauseListening,
+    pauseListening: recorder.pauseRecording,
     selectTopic,
     startConversation,
     toggleListening,
     endConversation,
     reset,
     fetchUsage,
-    speechError: speech.error,
+    speechError: recorder.error,
   };
 }

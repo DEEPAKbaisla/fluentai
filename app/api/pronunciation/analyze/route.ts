@@ -1,29 +1,14 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
-
-const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-});
+import { groq, CHAT_MODEL } from "@/lib/ai";
 
 async function callGroq(prompt: string): Promise<string> {
   const response = await groq.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+    model: CHAT_MODEL,
     messages: [{ role: "user", content: prompt }],
     temperature: 0.7,
     max_tokens: 500,
   });
   return response.choices[0].message.content || "";
-}
-
-async function callAI(prompt: string): Promise<string> {
-  try {
-    const text = await callGroq(prompt);
-    if (text) return text;
-  } catch (err) {
-    console.warn("Groq unavailable, falling back to Gemini:", (err as Error).message);
-  }
-  return callGroq(prompt);
 }
 
 function parseJson(text: string) {
@@ -71,7 +56,7 @@ SCORING GUIDE:
 
 IMPORTANT: Return ONLY valid JSON. No markdown fences. No extra text.`;
 
-    const text = await callAI(prompt);
+    const text = await callGroq(prompt);
     const parsed = parseJson(text);
 
     return NextResponse.json({

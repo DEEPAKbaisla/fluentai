@@ -73,28 +73,36 @@ export async function POST(request: Request) {
       userMessage
     );
 
+    const isOffTopic = Boolean(coachResponse.off_topic);
+
     const aiMessage = await db.message.create({
       data: {
         conversationId,
         role: "ai",
         content: response,
-        correctedSentence: coachResponse.corrected_sentence || undefined,
+        correctedSentence:
+          !isOffTopic && coachResponse.corrected_sentence
+            ? coachResponse.corrected_sentence
+            : undefined,
         encouragement: coachResponse.encouragement || undefined,
-        pronunciationTips: coachResponse.pronunciation?.length
-          ? (coachResponse.pronunciation as unknown as any)
-          : undefined,
-        scores: {
-          grammar_score: coachResponse.grammar_score,
-          vocabulary_score: coachResponse.vocabulary_score,
-          pronunciation_score: coachResponse.pronunciation_score,
-          fluency_score: coachResponse.fluency_score,
-          confidence_score: coachResponse.confidence_score,
-          overall_score: coachResponse.overall_score,
-        } as unknown as any,
+        pronunciationTips:
+          !isOffTopic && coachResponse.pronunciation?.length
+            ? (coachResponse.pronunciation as unknown as any)
+            : undefined,
+        scores: isOffTopic
+          ? undefined
+          : {
+              grammar_score: coachResponse.grammar_score,
+              vocabulary_score: coachResponse.vocabulary_score,
+              pronunciation_score: coachResponse.pronunciation_score,
+              fluency_score: coachResponse.fluency_score,
+              confidence_score: coachResponse.confidence_score,
+              overall_score: coachResponse.overall_score,
+            } as unknown as any,
       },
     });
 
-    if (corrections.length > 0) {
+    if (!isOffTopic && corrections.length > 0) {
       const lastUserMessage = await db.message.findFirst({
         where: { conversationId, role: "user" },
         orderBy: { timestamp: "desc" },
@@ -115,18 +123,21 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       aiMessage: response,
-      corrections,
-      correctedSentence: coachResponse.corrected_sentence,
+      offTopic: isOffTopic,
+      corrections: isOffTopic ? [] : corrections,
+      correctedSentence: isOffTopic ? null : coachResponse.corrected_sentence,
       encouragement: coachResponse.encouragement,
-      pronunciationTips: coachResponse.pronunciation,
-      scores: {
-        grammar: coachResponse.grammar_score,
-        vocabulary: coachResponse.vocabulary_score,
-        pronunciation: coachResponse.pronunciation_score,
-        fluency: coachResponse.fluency_score,
-        confidence: coachResponse.confidence_score,
-        overall: coachResponse.overall_score,
-      },
+      pronunciationTips: isOffTopic ? [] : coachResponse.pronunciation,
+      scores: isOffTopic
+        ? null
+        : {
+            grammar: coachResponse.grammar_score,
+            vocabulary: coachResponse.vocabulary_score,
+            pronunciation: coachResponse.pronunciation_score,
+            fluency: coachResponse.fluency_score,
+            confidence: coachResponse.confidence_score,
+            overall: coachResponse.overall_score,
+          },
     });
   } catch (error) {
     console.error("Chat error:", error);

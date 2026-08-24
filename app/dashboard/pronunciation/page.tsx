@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { useSpeechSynthesis } from "@/hooks/use-speech-synthesis";
-import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import { transcribeAudio } from "@/lib/stt";
 import { cn, getScoreColor, computeQuickAccuracy } from "@/lib/utils";
 
 interface PronunciationData {
@@ -38,9 +39,10 @@ export default function PronunciationPage() {
   const [recentWords, setRecentWords] = useState<string[]>([]);
   const [attemptCount, setAttemptCount] = useState(0);
   const [quickAccuracy, setQuickAccuracy] = useState<number | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const tts = useSpeechSynthesis();
-  const speech = useSpeechRecognition();
+  const recorder = useAudioRecorder();
 
   const handleLookup = useCallback(async (word?: string) => {
     const lookupWord = (word || inputWord).trim();
@@ -88,46 +90,65 @@ export default function PronunciationPage() {
 
   const handleStartPractice = useCallback(() => {
     setAnalysis(null);
-    speech.startListening();
-  }, [speech]);
+    setQuickAccuracy(null);
+    setError(null);
+    recorder.startRecording();
+  }, [recorder]);
 
   const handleStopPractice = useCallback(async () => {
-    speech.stopListening();
+    const blob = await recorder.stopRecording();
+    if (!blob || !pronData) return;
 
-    const spokenText = speech.transcript.trim();
-    if (!spokenText || !pronData) return;
-
-    const immediate = computeQuickAccuracy(pronData.word, spokenText);
-    setQuickAccuracy(immediate);
-    setIsAnalyzing(true);
-
+    setIsTranscribing(true);
     try {
-      const res = await fetch("/api/pronunciation/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetWord: pronData.word,
-          spokenText,
-        }),
-      });
+      const spokenText = await transcribeAudio(blob);
+      if (!spokenText) {
+        setError("Couldn't hear you clearly — try again.");
+        return;
+      }
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const immediate = computeQuickAccuracy(pronData.word, spokenText);
+      setQuickAccuracy(immediate);
+      setIsAnalyzing(true);
 
-      setAnalysis(data);
-      setQuickAccuracy(null);
-      setAttemptCount((prev) => prev + 1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to analyze pronunciation");
+      try {
+        const res = await fetch("/api/pronunciation/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            targetWord: pronData.word,
+            spokenText,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        setAnalysis(data);
+        setQuickAccuracy(null);
+        setAttemptCount((prev) => prev + 1);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to analyze pronunciation");
+      } finally {
+        setIsAnalyzing(false);
+      }
+    } catch {
+      setError("Failed to transcribe audio");
     } finally {
-      setIsAnalyzing(false);
+      setIsTranscribing(false);
     }
-  }, [speech.transcript, pronData]);
+  }, [recorder, pronData]);
 
   const handleRetry = useCallback(() => {
     setAnalysis(null);
     setQuickAccuracy(null);
   }, []);
+
+  const recordButtonLabel = isTranscribing
+    ? "Transcribing your attempt..."
+    : recorder.isRecording
+      ? "Stop recording"
+      : "Record your attempt";
 
   return (
     <div className="min-h-[calc(100vh-8rem)] p-4 sm:p-6 lg:p-8">
@@ -369,17 +390,23 @@ export default function PronunciationPage() {
                       </Button>
 
                       <motion.button
-                        onClick={speech.isListening ? handleStopPractice : handleStartPractice}
-                        disabled={isAnalyzing || tts.isSpeaking}
+                        onClick={recorder.isRecording ? handleStopPractice : handleStartPractice}
+                        disabled={isAnalyzing || isTranscribing || tts.isSpeaking}
+                        aria-label={recordButtonLabel}
+                        title={recordButtonLabel}
                         className={cn(
                           "relative flex h-16 w-16 items-center justify-center rounded-full transition-colors disabled:opacity-50",
-                          speech.isListening
+                          recorder.isRecording
                             ? "bg-red-500 text-white shadow-lg shadow-red-500/30"
                             : "bg-purple-500 text-white shadow-lg shadow-purple-500/30"
                         )}
                         whileTap={{ scale: 0.95 }}
                       >
-                        {speech.isListening ? (
+                        {isTranscribing ? (
+                          <svg className="h-6 w-6 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                          </svg>
+                        ) : recorder.isRecording ? (
                           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
@@ -389,7 +416,7 @@ export default function PronunciationPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                           </svg>
                         )}
-                        {speech.isListening && (
+                        {recorder.isRecording && (
                           <motion.div
                             className="absolute inset-0 rounded-full border-2 border-red-400/30"
                             animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
@@ -399,7 +426,7 @@ export default function PronunciationPage() {
                       </motion.button>
                     </div>
 
-                    {speech.isListening && (
+                    {recorder.isRecording && (
                       <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -408,14 +435,14 @@ export default function PronunciationPage() {
                         Listening... speak now, then click stop
                       </motion.p>
                     )}
-                    {speech.transcript && !speech.isListening && (
+                    {(isTranscribing || (isAnalyzing && quickAccuracy !== null)) && (
                       <motion.p
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="mt-3 text-sm text-muted-foreground"
                       >
-                        Detected: &quot;{speech.transcript}&quot;
-                        {isAnalyzing && quickAccuracy !== null && (
+                        {isTranscribing && "Transcribing your attempt..."}
+                        {!isTranscribing && isAnalyzing && quickAccuracy !== null && (
                           <span className={cn("ml-2 inline-flex items-center gap-1 rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-xs font-semibold", getScoreColor(quickAccuracy))}>
                             {quickAccuracy}%
                           </span>

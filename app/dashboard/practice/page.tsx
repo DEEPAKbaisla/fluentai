@@ -62,6 +62,13 @@ export default function PracticePage() {
   }, [practice.transcript]);
 
   const status = statusConfig[practice.status];
+  const micButtonLabel = practice.isTranscribing
+    ? "Transcribing..."
+    : practice.isPaused
+      ? "Resume speaking"
+      : practice.isListening
+        ? "Stop and send"
+        : "Start speaking";
   const totalCorrections = practice.transcript.reduce(
     (acc, msg) => acc + (msg.corrections?.length || 0),
     0
@@ -326,16 +333,27 @@ export default function PracticePage() {
               </div>
             </div>
 
-            {/* Interim transcript */}
-            {practice.interimTranscript && (
+            {/* Recording status */}
+            {practice.isTranscribing ? (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center justify-center gap-2 text-sm text-muted-foreground italic"
+              >
+                <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Transcribing...
+              </motion.p>
+            ) : practice.isListening ? (
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="max-w-md text-center text-sm text-muted-foreground italic"
               >
-                {practice.interimTranscript}
+                Listening... click the mic when you finish speaking
               </motion.p>
-            )}
+            ) : null}
           </div>
 
           {/* Scrollable Transcript */}
@@ -393,7 +411,9 @@ export default function PracticePage() {
 
             <motion.button
               onClick={practice.toggleListening}
-              disabled={practice.isAiThinking || practice.isSpeaking}
+              disabled={practice.isAiThinking || practice.isSpeaking || practice.isTranscribing}
+              aria-label={micButtonLabel}
+              title={micButtonLabel}
               className={cn(
                 "relative flex h-16 w-16 items-center justify-center rounded-full transition-colors sm:h-20 sm:w-20 disabled:opacity-50",
                 practice.isPaused
@@ -404,7 +424,11 @@ export default function PracticePage() {
               )}
               whileTap={{ scale: 0.95 }}
             >
-              {practice.isPaused ? (
+              {practice.isTranscribing ? (
+                <svg className="h-6 w-6 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+              ) : practice.isPaused ? (
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -437,7 +461,7 @@ export default function PracticePage() {
 
             {!practice.isSpeechSupported && (
               <p className="text-xs text-amber-400">
-                Speech recognition not supported in this browser. Use Chrome or Edge.
+                Microphone not available in this browser. Check permissions or try another browser.
               </p>
             )}
 
