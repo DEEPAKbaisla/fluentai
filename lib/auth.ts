@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 2 * 24 * 60 * 60 },
   pages: {
     signIn: "/auth/login",
     error: "/auth/login",
